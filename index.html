@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>SOS button</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+  <h1>Emergency SOS</h1>
+
+  <label>Contact's number:</label><br>
+  <input type="tel" id="contact"><br><br>
+
+  <label>Or type your location:</label><br>
+  <input type="text" id="typedLocation"><br><br>
+
+  <button id="sosBtn">Send my location now</button>
+
+  <p id="status"></p>
+
+  <script>
+    document.getElementById('sosBtn').addEventListener('click', function() {
+      navigator.geolocation.getCurrentPosition(
+        function(position) {
+          var lat = position.coords.latitude;
+          var lon = position.coords.longitude;
+          var number = document.getElementById('contact').value;
+          var mapslink = 'https://maps.google.com/?q=' + lat + ',' + lon;
+          var message = 'I need help. My location: ' + mapslink;
+          sendAlert(number, message);
+        },
+        function(error) {
+          var number = document.getElementById('contact').value;
+          var typed = document.getElementById('typedLocation').value;
+          var message = 'I need help. My location: ' + typed;
+          sendAlert(number, message);
+        }
+      );
+    });
+
+    function sendAlert(number, message) {
+      document.getElementById('status').textContent = 'Sending...';
+      fetch('/api/send-sms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: number, message: message })
+      })
+      .then(function(response) { return response.json(); })
+      .then(function(data) {
+        if (data.success) {
+          document.getElementById('status').textContent = 'Sent! Help is on the way.';
+        } else {
+          document.getElementById('status').textContent = 'Could not send. Try again.';
+        }
+      })
+      .catch(function(error) {
+        document.getElementById('status').textContent = 'Network error. Try again.';
+      });
+    }
+  </script>
+</body>
+</html>

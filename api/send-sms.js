@@ -1,4 +1,4 @@
-export default async function handler(req, res) {
+module.exports = async (req, res) => {
   const { to, message } = req.body;
 
   const accountSid = process.env.TWILIO_SID;
@@ -28,4 +28,4 @@ export default async function handler(req, res) {
   } else {
     res.status(500).json({ success: false, error: data });
   }
-}
+};

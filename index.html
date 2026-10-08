@@ -3,57 +3,93 @@
 <head>
   <title>SOS button</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <style>
+    body { font-family: sans-serif; padding: 20px; max-width: 400px; margin: auto; }
+    label { display: block; margin-bottom: 4px; }
+    input { width: 100%; padding: 10px; font-size: 16px; margin-bottom: 14px; box-sizing: border-box; }
+    button { width: 100%; padding: 16px; font-size: 18px; background: #d64545; color: white; border: none; border-radius: 10px; }
+    button:disabled { opacity: 0.6; }
+    #status { margin-top: 15px; font-weight: bold; }
+  </style>
 </head>
 <body>
   <h1>Emergency SOS</h1>
 
-  <label>Contact's number:</label><br>
-  <input type="email" id="contact"><br><br>
+  <label for="contact">Contact's email:</label>
+  <input type="email" id="contact" placeholder="name@example.com">
 
-  <label>Or type your location:</label><br>
-  <input type="text" id="typedLocation"><br><br>
+  <label for="typedLocation">Or type your location:</label>
+  <input type="text" id="typedLocation" placeholder="Area or nearby landmark">
 
   <button id="sosBtn">Send my location now</button>
 
   <p id="status"></p>
 
   <script>
-    document.getElementById('sosBtn').addEventListener('click', function() {
+    var btn = document.getElementById('sosBtn');
+    var statusEl = document.getElementById('status');
+
+    function setStatus(text) {
+      statusEl.textContent = text;
+    }
+
+    btn.addEventListener('click', function() {
+      var contact = document.getElementById('contact').value.trim();
+
+      if (!contact || contact.indexOf('@') === -1) {
+        setStatus('Enter a valid contact email first.');
+        return;
+      }
+
+      btn.disabled = true;
+      setStatus('Getting your location...');
+
+      if (!navigator.geolocation) {
+        useTypedLocation(contact);
+        return;
+      }
+
       navigator.geolocation.getCurrentPosition(
         function(position) {
           var lat = position.coords.latitude;
           var lon = position.coords.longitude;
-          var number = document.getElementById('contact').value;
-          var mapslink = 'https://maps.google.com/?q=' + lat + ',' + lon;
-          var message = 'I need help. My location: ' + mapslink;
-          sendAlert(number, message);
+          var link = 'https://maps.google.com/?q=' + lat + ',' + lon;
+          sendAlert(contact, 'I need help. My location: ' + link);
         },
-        function(error) {
-          var number = document.getElementById('contact').value;
-          var typed = document.getElementById('typedLocation').value;
-          var message = 'I need help. My location: ' + typed;
-          sendAlert(number, message);
-        }
+        function() {
+          useTypedLocation(contact);
+        },
+        { enableHighAccuracy: true, timeout: 8000 }
       );
     });
 
-    function sendAlert(number, message) {
-      document.getElementById('status').textContent = 'Sending...';
+    function useTypedLocation(contact) {
+      var typed = document.getElementById('typedLocation').value.trim();
+      var where = typed ? typed : 'unavailable (could not be found)';
+      sendAlert(contact, 'I need help. My location: ' + where);
+    }
+
+    function sendAlert(contact, message) {
+      setStatus('Sending...');
+
       fetch('/api/send-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to: number, message: message })
+        body: JSON.stringify({ to: contact, message: message })
       })
       .then(function(response) { return response.json(); })
       .then(function(data) {
         if (data.success) {
-          document.getElementById('status').textContent = 'Sent! Help is on the way.';
+          setStatus('Alert sent to your contact.');
         } else {
-          document.getElementById('status').textContent = 'Could not send. Try again.';
+          setStatus('Could not send. Try again.');
         }
+        btn.disabled = false;
       })
-      .catch(function(error) {
-        document.getElementById('status').textContent = 'Network error. Try again.';
+      .catch(function() {
+        setStatus('Could not reach the server. Check your internet and try again.');
+        btn.disabled = false;
       });
     }
   </script>
